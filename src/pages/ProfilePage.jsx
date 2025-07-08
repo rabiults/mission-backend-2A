@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { User, Mail, Phone, MapPin, Edit3, Save, Trash2, RefreshCw } from 'lucide-react';
 import Footer from '../components/organisems/Footer';
 import NavbarHome from '../components/organisems/NavbarHome';
 import {
-  getUsers,
-  createUser,
-  updateUser,
-  deleteUser,
-  testConnection
-} from '../services/api/profileApi';
+  fetchUsers,
+  addUser,
+  editUser,
+  removeUser,
+  clearError,
+  clearSelectedUser
+} from '../store/redux/userSlice';
 
-const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnection }) => {
+const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, loading }) => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -104,6 +106,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                     placeholder="Masukkan nama lengkap"
                     required
+                    disabled={loading}
                   />
                 </div>
 
@@ -120,6 +123,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                     placeholder="contoh@email.com"
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -141,6 +145,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
                     className="flex-1 border border-gray-300 rounded-r-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                     placeholder="81234567890"
                     required
+                    disabled={loading}
                   />
                 </div>
               </div>
@@ -158,6 +163,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 resize-none"
                   placeholder="Masukkan alamat lengkap Anda"
                   required
+                  disabled={loading}
                 />
               </div>
 
@@ -166,7 +172,8 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
                   <button
                     type="button"
                     onClick={handleDelete}
-                    className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
+                    disabled={loading}
+                    className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Hapus Profil
@@ -175,9 +182,14 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
                 
                 <button
                   type="submit"
-                  className="bg-green-500 hover:bg-green-600 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
+                  disabled={loading}
+                  className="bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
                 >
-                  <Save className="w-4 h-4 mr-2" />
+                  {loading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
                   {formData.id ? 'Update Profil' : 'Simpan Profil'}
                 </button>
               </div>
@@ -190,99 +202,70 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnec
 };
 
 const ProfilePage = () => {
-  const [user, setUser] = useState({
+  const dispatch = useDispatch();
+  const { users, loading, error } = useSelector((state) => state.user);
+  
+  const [successMessage, setSuccessMessage] = useState('');
+  const [currentUser, setCurrentUser] = useState({
     id: '',
     name: '',
     email: '',
     phone: '',
     address: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
-  const loadUserData = async () => {
-    try {
-      setLoading(true);
-      const users = await getUsers();
-      console.log('Loaded users:', users);
-      
-      if (users && users.length > 0) {
-        const latestUser = users[users.length - 1];
-        setUser(latestUser);
-      }
-    } catch (err) {
-      console.error('Error loading user:', err);
-      setError('❌ Gagal memuat data user: ' + err.message);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    dispatch(fetchUsers());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (users && users.length > 0) {
+      const latestUser = users[users.length - 1];
+      setCurrentUser(latestUser);
     }
-  };
+  }, [users]);
 
   const handleUpdateProfile = async (formData) => {
     try {
-      setLoading(true);
-      setError('');
+      dispatch(clearError());
       setSuccessMessage('');
 
       if (formData.id) {
-        const updatedUser = await updateUser(formData.id, formData);
-        setUser(updatedUser);
-        setSuccessMessage('✅ Profil berhasil diperbarui!');
+        const result = await dispatch(editUser({ id: formData.id, userData: formData }));
+        if (result.meta.requestStatus === 'fulfilled') {
+          setCurrentUser(result.payload);
+          setSuccessMessage('✅ Profil berhasil diperbarui!');
+        }
       } else {
-        const newUser = await createUser(formData);
-        setUser(newUser);
-        setSuccessMessage('✅ Profil berhasil dibuat!');
+        const result = await dispatch(addUser(formData));
+        if (result.meta.requestStatus === 'fulfilled') {
+          setCurrentUser(result.payload);
+          setSuccessMessage('✅ Profil berhasil dibuat!');
+        }
       }
     } catch (err) {
       console.error('Error updating profile:', err);
-      setError('❌ ' + err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDeleteProfile = async (id) => {
     try {
-      setLoading(true);
-      setError('');
+      dispatch(clearError());
       setSuccessMessage('');
 
-      await deleteUser(id);
-      setUser({
-        id: '',
-        name: '',
-        email: '',
-        phone: '',
-        address: ''
-      });
-      setSuccessMessage('Profil berhasil dihapus!');
-    } catch (err) {
-      console.error('Error deleting profile:', err);
-      setError('❌ ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Test API connection
-  const handleTestConnection = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      setSuccessMessage('');
-
-      const isConnected = await testConnection();
-      if (isConnected) {
-        setSuccessMessage('Koneksi API berhasil!');
-      } else {
-        setError('❌ Koneksi API gagal!');
+      const result = await dispatch(removeUser(id));
+      if (result.meta.requestStatus === 'fulfilled') {
+        setCurrentUser({
+          id: '',
+          name: '',
+          email: '',
+          phone: '',
+          address: ''
+        });
+        setSuccessMessage('✅ Profil berhasil dihapus!');
       }
     } catch (err) {
-      console.error('Error testing connection:', err);
-      setError('❌ Test koneksi gagal: ' + err.message);
-    } finally {
-      setLoading(false);
+      console.error('Error deleting profile:', err);
     }
   };
 
@@ -290,15 +273,11 @@ const ProfilePage = () => {
     if (successMessage || error) {
       const timer = setTimeout(() => {
         setSuccessMessage('');
-        setError('');
+        dispatch(clearError());
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [successMessage, error]);
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
+  }, [successMessage, error, dispatch]);
 
   if (loading) {
     return (
@@ -335,10 +314,10 @@ const ProfilePage = () => {
       )}
   
       <ProfileForm 
-        user={user} 
+        user={currentUser} 
         onUpdateProfile={handleUpdateProfile}
         onDeleteProfile={handleDeleteProfile}
-        onTestConnection={handleTestConnection}
+        loading={loading}
       />
       <Footer />
     </div>
