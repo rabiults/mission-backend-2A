@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Edit3, Save, Trash2 } from 'lucide-react';
-// Import komponen eksternal
+import { User, Mail, Phone, MapPin, Edit3, Save, Trash2, RefreshCw } from 'lucide-react';
 import Footer from '../components/organisems/Footer';
 import NavbarHome from '../components/organisems/NavbarHome';
+import {
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  testConnection
+} from '../services/api/profileApi';
 
-// ProfileForm Component - UI Component untuk form
-const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
+const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile, onTestConnection }) => {
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -14,7 +19,6 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
     address: ''
   });
 
-  // Update form data when user prop changes
   useEffect(() => {
     setFormData({
       id: user.id || '',
@@ -55,7 +59,6 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
           <div className="p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6 lg:space-x-8">
-           
               <div className="flex-shrink-0">
                 <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-full bg-orange-100 flex items-center justify-center">
                   <User className="w-12 h-12 lg:w-16 lg:h-16 text-orange-600" />
@@ -64,15 +67,17 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
               
               <div className="flex-1 text-center sm:text-left">
                 <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 mb-2">
-                  {formData.name || ''}
+                  {formData.name || 'Nama Pengguna'}
                 </h1>
                 <p className="text-gray-600 text-base lg:text-lg mb-4">
-                  {formData.email || ''}
+                  {formData.email || 'email@example.com'}
                 </p>
-                <button className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition-colors">
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  Ganti Foto Profil
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-orange-100 text-orange-800 hover:bg-orange-200 transition-colors">
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Ganti Foto Profil
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -84,7 +89,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
               Ubah Profil
             </h2>
             
-            <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -98,6 +103,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                     placeholder="Masukkan nama lengkap"
+                    required
                   />
                 </div>
 
@@ -113,6 +119,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                     placeholder="contoh@email.com"
+                    required
                   />
                 </div>
               </div>
@@ -133,6 +140,7 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
                     onChange={handleChange}
                     className="flex-1 border border-gray-300 rounded-r-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200"
                     placeholder="81234567890"
+                    required
                   />
                 </div>
               </div>
@@ -149,29 +157,31 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
                   rows={4}
                   className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 resize-none"
                   placeholder="Masukkan alamat lengkap Anda"
+                  required
                 />
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Hapus Profil
-                </button>
+                {formData.id && (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="bg-red-500 hover:bg-red-600 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Hapus Profil
+                  </button>
+                )}
                 
                 <button
-                  type="button"
-                  onClick={handleSubmit}
+                  type="submit"
                   className="bg-green-500 hover:bg-green-600 text-white font-medium px-6 py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center"
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  Simpan Perubahan
+                  {formData.id ? 'Update Profil' : 'Simpan Profil'}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>
@@ -179,10 +189,9 @@ const ProfileForm = ({ user = {}, onUpdateProfile, onDeleteProfile }) => {
   );
 };
 
-
 const ProfilePage = () => {
   const [user, setUser] = useState({
-    id: null,
+    id: '',
     name: '',
     email: '',
     phone: '',
@@ -192,139 +201,104 @@ const ProfilePage = () => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const [userStorage, setUserStorage] = useState(null);
-
-  const simulateDelay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const createUser = async (userData) => {
+  const loadUserData = async () => {
     try {
       setLoading(true);
-      await simulateDelay();
+      const users = await getUsers();
+      console.log('Loaded users:', users);
       
-      const newUser = {
-        ...userData,
-        id: Date.now(), 
-        createdAt: new Date().toISOString()
-      };
-      
-      setUserStorage(newUser);
-      
-      setUser(newUser);
-      setSuccessMessage('✅ User berhasil dibuat dan disimpan!');
-    } catch (err) {
-      setError('❌ Gagal membuat user: ' + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUser = async () => {
-    try {
-      setLoading(true);
-      await simulateDelay();
-      
-      if (userStorage) {
-        setUser(userStorage);
-      } else {
-        setUser({
-          id: null,
-          name: '',
-          email: '',
-          phone: '',
-          address: ''
-        });
+      if (users && users.length > 0) {
+        const latestUser = users[users.length - 1];
+        setUser(latestUser);
       }
     } catch (err) {
-      setError('❌ Gagal mengambil data user: ' + err.message);
+      console.error('Error loading user:', err);
+      setError('❌ Gagal memuat data user: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // UPDATE - Update data user
-  const updateUser = async (userData) => {
+  const handleUpdateProfile = async (formData) => {
     try {
       setLoading(true);
-      await simulateDelay();
-      
-      const updatedUser = {
-        ...userData,
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Update memory storage
-      setUserStorage(updatedUser);
-      
-      setUser(updatedUser);
-      setSuccessMessage('✅ Profil berhasil diperbarui dan disimpan!');
+      setError('');
+      setSuccessMessage('');
+
+      if (formData.id) {
+        const updatedUser = await updateUser(formData.id, formData);
+        setUser(updatedUser);
+        setSuccessMessage('✅ Profil berhasil diperbarui!');
+      } else {
+        const newUser = await createUser(formData);
+        setUser(newUser);
+        setSuccessMessage('✅ Profil berhasil dibuat!');
+      }
     } catch (err) {
-      setError('❌ Gagal memperbarui profil: ' + err.message);
+      console.error('Error updating profile:', err);
+      setError('❌ ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // DELETE - Hapus user
-  const deleteUser = async () => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus akun ini?')) return;
-    
+  const handleDeleteProfile = async (id) => {
     try {
       setLoading(true);
-      await simulateDelay();
-      
-      // Remove from memory storage
-      setUserStorage(null);
-      
+      setError('');
+      setSuccessMessage('');
+
+      await deleteUser(id);
       setUser({
-        id: null,
+        id: '',
         name: '',
         email: '',
         phone: '',
         address: ''
       });
-      setSuccessMessage('✅ Akun berhasil dihapus!');
+      setSuccessMessage('Profil berhasil dihapus!');
     } catch (err) {
-      setError('❌ Gagal menghapus akun: ' + err.message);
+      console.error('Error deleting profile:', err);
+      setError('❌ ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handler untuk form submission
-  const handleUpdateProfile = (formData) => {
-    // Clear previous messages
-    setError('');
-    setSuccessMessage('');
-    
-    if (formData.id) {
-      // Update existing user
-      updateUser(formData);
-    } else {
-      // Create new user
-      createUser(formData);
+  // Test API connection
+  const handleTestConnection = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      setSuccessMessage('');
+
+      const isConnected = await testConnection();
+      if (isConnected) {
+        setSuccessMessage('Koneksi API berhasil!');
+      } else {
+        setError('❌ Koneksi API gagal!');
+      }
+    } catch (err) {
+      console.error('Error testing connection:', err);
+      setError('❌ Test koneksi gagal: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Handler untuk delete
-  const handleDeleteProfile = () => {
-    deleteUser();
-  };
-
-  // Clear messages after 4 seconds
   useEffect(() => {
     if (successMessage || error) {
       const timer = setTimeout(() => {
         setSuccessMessage('');
         setError('');
-      }, 4000);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [successMessage, error]);
 
-  // Load user data on component mount
   useEffect(() => {
-    fetchUser();
-  }, [userStorage]);
+    loadUserData();
+  }, []);
 
   if (loading) {
     return (
@@ -344,8 +318,6 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <NavbarHome />
-      
-      {/* Success & Error Messages */}
       {(successMessage || error) && (
         <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6">
           {successMessage && (
@@ -361,19 +333,16 @@ const ProfilePage = () => {
           )}
         </div>
       )}
-      
-      {/* Profile Form Component */}
+  
       <ProfileForm 
         user={user} 
         onUpdateProfile={handleUpdateProfile}
         onDeleteProfile={handleDeleteProfile}
+        onTestConnection={handleTestConnection}
       />
-      
-      {/* Footer */}
       <Footer />
     </div>
   );
 };
 
-// Main App Component - Export sebagai default
 export default ProfilePage;

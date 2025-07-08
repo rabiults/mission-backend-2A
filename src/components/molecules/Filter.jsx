@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  setCategory, setPriceRange, setRating, setDuration, resetFilter 
+} from '../../store/redux/filterSlice';
+
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import BookIcon from '../../assets/images/icons/book.png';
 import ClockIcon from '../../assets/images/icons/jam.png';
 import RpIcon from '../../assets/images/icons/rp.png';
 import RatingIcon from '../../assets/images/icons/rating.png';
 
-
-
-
-
-const Filter = ({ onFilterChange, courses = [] }) => {
-  const [activeFilters, setActiveFilters] = useState({
-    category: [],
-    priceRange: '',
-    rating: '',
-    duration: ''
-  });
+const Filter = ({ courses = [] }) => {
+  const dispatch = useDispatch();
+  const filter = useSelector((state) => state.filter);
 
   const [expandedSections, setExpandedSections] = useState({
     category: true,
@@ -24,6 +21,7 @@ const Filter = ({ onFilterChange, courses = [] }) => {
     duration: false
   });
 
+  // Ambil kategori unik dari courses
   const categories = [...new Set(courses.map(course => course.category))];
 
   const priceRanges = [
@@ -53,30 +51,30 @@ const Filter = ({ onFilterChange, courses = [] }) => {
   };
 
   const handleCategoryChange = (category) => {
-    const newCategories = activeFilters.category.includes(category)
-      ? activeFilters.category.filter(cat => cat !== category)
-      : [...activeFilters.category, category];
-    
-    const newFilters = { ...activeFilters, category: newCategories };
-    setActiveFilters(newFilters);
-    onFilterChange(newFilters);
+    const newCategories = filter.category.includes(category)
+      ? filter.category.filter(cat => cat !== category)
+      : [...filter.category, category];
+    dispatch(setCategory(newCategories));
   };
 
   const handleFilterChange = (filterType, value) => {
-    const newFilters = { ...activeFilters, [filterType]: value };
-    setActiveFilters(newFilters);
-    onFilterChange(newFilters);
+    switch (filterType) {
+      case 'priceRange':
+        dispatch(setPriceRange(value));
+        break;
+      case 'rating':
+        dispatch(setRating(value));
+        break;
+      case 'duration':
+        dispatch(setDuration(value));
+        break;
+      default:
+        break;
+    }
   };
 
-  const resetFilters = () => {
-    const resetFilters = {
-      category: [],
-      priceRange: '',
-      rating: '',
-      duration: ''
-    };
-    setActiveFilters(resetFilters);
-    onFilterChange(resetFilters);
+  const handleReset = () => {
+    dispatch(resetFilter());
   };
 
   const FilterSection = ({ icon, title, isExpanded, onToggle, children }) => (
@@ -100,33 +98,38 @@ const Filter = ({ onFilterChange, courses = [] }) => {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">Filter</h3>
         <button
-          onClick={resetFilters}
+          onClick={handleReset}
           className="text-sm text-orange-600 hover:text-orange-700 font-bold"
         >
           Reset
         </button>
       </div>
 
+      {/* Filter Bidang Studi */}
       <FilterSection
         icon={BookIcon}
         title="Bidang Studi"
         isExpanded={expandedSections.category}
         onToggle={() => toggleSection('category')}
       >
-        {categories.map(category => (
-          <label key={category} className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={activeFilters.category.includes(category)}
-              onChange={() => handleCategoryChange(category)}
-              className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500 accent-green-600"
-            />
-            <span className="text-sm text-gray-700">{category}</span>
-          </label>
-        ))}
+        {categories.length > 0 ? (
+          categories.map(category => (
+            <label key={category} className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filter.category.includes(category)}
+                onChange={() => handleCategoryChange(category)}
+                className="h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500 accent-green-600"
+              />
+              <span className="text-sm text-gray-700">{category}</span>
+            </label>
+          ))
+        ) : (
+          <p className="text-sm text-gray-500">Tidak ada kategori tersedia</p>
+        )}
       </FilterSection>
 
-
+      {/* Filter Harga */}
       <FilterSection
         icon={RpIcon}
         title="Harga"
@@ -139,7 +142,7 @@ const Filter = ({ onFilterChange, courses = [] }) => {
               type="radio"
               name="priceRange"
               value={range.value}
-              checked={activeFilters.priceRange === range.value}
+              checked={filter.priceRange === range.value}
               onChange={(e) => handleFilterChange('priceRange', e.target.value)}
               className="h-4 w-4 text-green-600 border-green-300 focus:ring-green-500 accent-green-600"
             />
@@ -148,7 +151,7 @@ const Filter = ({ onFilterChange, courses = [] }) => {
         ))}
       </FilterSection>
 
-    
+      {/* Filter Rating */}
       <FilterSection
         icon={RatingIcon}
         title="Rating"
@@ -161,16 +164,16 @@ const Filter = ({ onFilterChange, courses = [] }) => {
               type="radio"
               name="rating"
               value={rating.value}
-              checked={activeFilters.rating === rating.value}
+              checked={filter.rating === rating.value}
               onChange={(e) => handleFilterChange('rating', e.target.value)}
-              className="text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-orange-600 border-orange-300 focus:ring-orange-500 accent-orange-600"
             />
             <span className="text-sm text-gray-700">{rating.label}</span>
           </label>
         ))}
       </FilterSection>
 
-     
+      {/* Filter Durasi */}
       <FilterSection
         icon={ClockIcon}
         title="Durasi"
@@ -183,42 +186,16 @@ const Filter = ({ onFilterChange, courses = [] }) => {
               type="radio"
               name="duration"
               value={duration.value}
-              checked={activeFilters.duration === duration.value}
+              checked={filter.duration === duration.value}
               onChange={(e) => handleFilterChange('duration', e.target.value)}
-              className="text-orange-600 focus:ring-orange-500"
+              className="h-4 w-4 text-orange-600 border-orange-300 focus:ring-orange-500 accent-orange-600"
             />
-            <span className="text-sm text-gray-700">{duration.label}</span>
+            <span className="text-sm text-gray-700">
+              {duration.label}
+            </span>
           </label>
         ))}
       </FilterSection>
-
-      {(activeFilters.category.length > 0 || activeFilters.priceRange || activeFilters.rating || activeFilters.duration) && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Filter Aktif:</h4>
-          <div className="space-y-1">
-            {activeFilters.category.map(cat => (
-              <span key={cat} className="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full mr-1">
-                {cat}
-              </span>
-            ))}
-            {activeFilters.priceRange && (
-              <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1">
-                {priceRanges.find(p => p.value === activeFilters.priceRange)?.label}
-              </span>
-            )}
-            {activeFilters.rating && (
-              <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-1">
-                Rating {activeFilters.rating}+
-              </span>
-            )}
-            {activeFilters.duration && (
-              <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full mr-1">
-                {durations.find(d => d.value === activeFilters.duration)?.label}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
