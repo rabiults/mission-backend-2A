@@ -12,6 +12,7 @@ import RatingIcon from '../../assets/images/icons/rating.png';
 
 const Filter = ({ courses = [] }) => {
   const dispatch = useDispatch();
+  
   const filter = useSelector((state) => state.filter);
 
   const [expandedSections, setExpandedSections] = useState({
@@ -21,8 +22,42 @@ const Filter = ({ courses = [] }) => {
     duration: false
   });
 
-  // Ambil kategori unik dari courses
-  const categories = [...new Set(courses.map(course => course.category))];
+  courses.forEach((course, index) => {
+    console.log(`Course ${index}:`, {
+      category: course.category,
+      kategori: course.kategori,
+      title: course.title || course.name,
+      ...course
+    });
+  });
+
+  const extractCategories = () => {
+    const allCategories = courses.map(course => {
+      const cat = course.category || course.kategori;
+      console.log('Extracted category:', cat);
+      return cat;
+    });
+    
+    console.log('All categories before filter:', allCategories);
+    
+    const filteredCategories = allCategories.filter(Boolean);
+    console.log('Filtered categories:', filteredCategories);
+    
+    const uniqueCategories = [...new Set(filteredCategories)];
+    console.log('Unique categories:', uniqueCategories);
+    
+    return uniqueCategories;
+  };
+
+  const categories = extractCategories();
+
+  const fallbackCategories = [
+    'Bisnis',
+    'Pemasaran', 
+    'Desain',
+    'Pengembangan Diri',
+    'Fullstack Developer'
+  ];
 
   const priceRanges = [
     { label: 'Kurang dari Rp 200K', value: '0-200000' },
@@ -51,22 +86,19 @@ const Filter = ({ courses = [] }) => {
   };
 
   const handleCategoryChange = (category) => {
-    const newCategories = filter.category.includes(category)
-      ? filter.category.filter(cat => cat !== category)
-      : [...filter.category, category];
-    dispatch(setCategory(newCategories));
+    dispatch(setCategory(category));
   };
 
   const handleFilterChange = (filterType, value) => {
     switch (filterType) {
       case 'priceRange':
-        dispatch(setPriceRange(value));
+        dispatch(setPriceRange(filter.priceRange === value ? '' : value));
         break;
       case 'rating':
-        dispatch(setRating(value));
+        dispatch(setRating(filter.rating === value ? '' : value));
         break;
       case 'duration':
-        dispatch(setDuration(value));
+        dispatch(setDuration(filter.duration === value ? '' : value));
         break;
       default:
         break;
@@ -93,6 +125,11 @@ const Filter = ({ courses = [] }) => {
     </div>
   );
 
+  const displayCategories = categories.length > 0 ? categories : fallbackCategories;
+
+  console.log('Final categories to display:', displayCategories);
+  console.log('Current filter state:', filter);
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
       <div className="flex items-center justify-between mb-4">
@@ -105,15 +142,14 @@ const Filter = ({ courses = [] }) => {
         </button>
       </div>
 
-      {/* Filter Bidang Studi */}
       <FilterSection
         icon={BookIcon}
         title="Bidang Studi"
         isExpanded={expandedSections.category}
         onToggle={() => toggleSection('category')}
       >
-        {categories.length > 0 ? (
-          categories.map(category => (
+        {displayCategories.length > 0 ? (
+          displayCategories.map(category => (
             <label key={category} className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -129,7 +165,6 @@ const Filter = ({ courses = [] }) => {
         )}
       </FilterSection>
 
-      {/* Filter Harga */}
       <FilterSection
         icon={RpIcon}
         title="Harga"
@@ -151,7 +186,6 @@ const Filter = ({ courses = [] }) => {
         ))}
       </FilterSection>
 
-      {/* Filter Rating */}
       <FilterSection
         icon={RatingIcon}
         title="Rating"
@@ -173,7 +207,6 @@ const Filter = ({ courses = [] }) => {
         ))}
       </FilterSection>
 
-      {/* Filter Durasi */}
       <FilterSection
         icon={ClockIcon}
         title="Durasi"
