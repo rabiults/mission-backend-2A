@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import kelasApi from '../../services/api/kelasApi.js';
 
-// Async Thunks
 export const fetchAllKelas = createAsyncThunk(
   'kelas/fetchAll',
   async (_, { rejectWithValue }) => {

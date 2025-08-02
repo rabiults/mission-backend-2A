@@ -29,6 +29,167 @@ const Kelas = {
     }
   },
 
+  // NEW: Advanced filtering with multiple parameters and sorting
+  findWithFilters: async (filters = {}) => {
+    try {
+      const { 
+        category, 
+        level, 
+        instructor, 
+        search, 
+        sortBy = 'created_at', 
+        sortOrder = 'DESC',
+        minPrice,
+        maxPrice,
+        minRating,
+        limit,
+        offset = 0
+      } = filters;
+
+      let whereConditions = [];
+      let queryParams = [];
+      
+      // Build WHERE conditions dynamically
+      if (category) {
+        whereConditions.push('k.kategori_id = ?');
+        queryParams.push(category);
+      }
+      
+      if (instructor) {
+        whereConditions.push('t.nama_tutor LIKE ?');
+        queryParams.push(`%${instructor}%`);
+      }
+      
+      if (search) {
+        whereConditions.push('(k.judul LIKE ? OR k.deskripsi LIKE ? OR t.nama_tutor LIKE ?)');
+        queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      }
+      
+      if (minPrice) {
+        whereConditions.push('k.harga >= ?');
+        queryParams.push(minPrice);
+      }
+      
+      if (maxPrice) {
+        whereConditions.push('k.harga <= ?');
+        queryParams.push(maxPrice);
+      }
+      
+      if (minRating) {
+        whereConditions.push('k.rating >= ?');
+        queryParams.push(minRating);
+      }
+
+      // Validate sortBy to prevent SQL injection
+      const allowedSortFields = ['created_at', 'updated_at', 'judul', 'harga', 'rating', 'durasi'];
+      const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+      const validSortOrder = ['ASC', 'DESC'].includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+
+      // Build the query
+      let sqlQuery = `
+        SELECT 
+          k.kelas_id,
+          k.judul,
+          k.deskripsi,
+          k.harga,
+          k.durasi,
+          k.rating,
+          k.created_at,
+          k.updated_at,
+          t.nama_tutor,
+          t.bio as tutor_bio,
+          t.avatar as tutor_avatar,
+          kat.nama_kategori
+        FROM kelas k
+        LEFT JOIN tutor t ON k.tutor_id = t.tutor_id
+        LEFT JOIN kategori kat ON k.kategori_id = kat.kategori_id
+      `;
+      
+      if (whereConditions.length > 0) {
+        sqlQuery += ' WHERE ' + whereConditions.join(' AND ');
+      }
+      
+      sqlQuery += ` ORDER BY k.${validSortBy} ${validSortOrder}`;
+      
+      if (limit) {
+        sqlQuery += ' LIMIT ? OFFSET ?';
+        queryParams.push(parseInt(limit), parseInt(offset));
+      }
+
+      const rows = await query(sqlQuery, queryParams);
+      return rows;
+    } catch (error) {
+      console.error('Error in Kelas.findWithFilters:', error);
+      throw error;
+    }
+  },
+
+  // NEW: Get count for pagination
+  getCountWithFilters: async (filters = {}) => {
+    try {
+      const { 
+        category, 
+        level, 
+        instructor, 
+        search,
+        minPrice,
+        maxPrice,
+        minRating
+      } = filters;
+
+      let whereConditions = [];
+      let queryParams = [];
+      
+      if (category) {
+        whereConditions.push('k.kategori_id = ?');
+        queryParams.push(category);
+      }
+      
+      
+      if (instructor) {
+        whereConditions.push('t.nama_tutor LIKE ?');
+        queryParams.push(`%${instructor}%`);
+      }
+      
+      if (search) {
+        whereConditions.push('(k.judul LIKE ? OR k.deskripsi LIKE ? OR t.nama_tutor LIKE ?)');
+        queryParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      }
+      
+      if (minPrice) {
+        whereConditions.push('k.harga >= ?');
+        queryParams.push(minPrice);
+      }
+      
+      if (maxPrice) {
+        whereConditions.push('k.harga <= ?');
+        queryParams.push(maxPrice);
+      }
+      
+      if (minRating) {
+        whereConditions.push('k.rating >= ?');
+        queryParams.push(minRating);
+      }
+
+      let sqlQuery = `
+        SELECT COUNT(*) as total
+        FROM kelas k
+        LEFT JOIN tutor t ON k.tutor_id = t.tutor_id
+        LEFT JOIN kategori kat ON k.kategori_id = kat.kategori_id
+      `;
+      
+      if (whereConditions.length > 0) {
+        sqlQuery += ' WHERE ' + whereConditions.join(' AND ');
+      }
+
+      const result = await query(sqlQuery, queryParams);
+      return result[0].total;
+    } catch (error) {
+      console.error('Error in Kelas.getCountWithFilters:', error);
+      throw error;
+    }
+  },
+
   findById: async (id) => {
     try {
       if (!id) {
@@ -155,15 +316,15 @@ const Kelas = {
         throw new Error('Invalid kelas data');
       }
 
-      const { judul, deskripsi, harga, durasi, tutor_id, kategori_id } = kelasData;
+      const { judul, deskripsi, harga, durasi, tutor_id, kategori_id, level } = kelasData;
       if (!judul || !deskripsi || !harga || !durasi || !tutor_id || !kategori_id) {
         throw new Error('Missing required fields: judul, deskripsi, harga, durasi, tutor_id, kategori_id');
       }
 
       const result = await query(`
-        INSERT INTO kelas (judul, deskripsi, harga, durasi, tutor_id, kategori_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-      `, [judul, deskripsi, harga, durasi, tutor_id, kategori_id]);
+        INSERT INTO kelas (judul, deskripsi, harga, durasi, tutor_id, kategori_id, level, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `, [judul, deskripsi, harga, durasi, tutor_id, kategori_id, level || 'beginner']);
 
       if (!result.insertId) {
         throw new Error('Failed to create kelas');
@@ -240,6 +401,10 @@ const Kelas = {
       if (updateData.kategori_id !== undefined) {
         fields.push('kategori_id = ?');
         values.push(updateData.kategori_id);
+      }
+      if (updateData.level !== undefined) {
+        fields.push('level = ?');
+        values.push(updateData.level);
       }
 
       if (fields.length === 0) {
@@ -346,7 +511,6 @@ const Kelas = {
           k.harga,
           k.durasi,
           k.rating,
-          k.level,
           k.created_at,
           k.updated_at,
           t.nama_tutor,
@@ -356,7 +520,6 @@ const Kelas = {
         FROM kelas k
         LEFT JOIN tutor t ON k.tutor_id = t.tutor_id
         LEFT JOIN kategori kat ON k.kategori_id = kat.kategori_id
-        WHERE k.level = ?
         ORDER BY k.created_at DESC
       `, [level]);
       return rows;

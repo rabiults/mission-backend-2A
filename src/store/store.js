@@ -1,13 +1,15 @@
 import { configureStore } from '@reduxjs/toolkit';
-import kelasReducer from './kelasSlice';
-import filterReducer from './filterSlice';
-import userReducer from './userSlice';
+import kelasReducer from './redux/kelasSlice';
+import filterReducer from './redux/filterSlice';
+import userReducer from './redux/userSlice';
+import authReducer from './redux/authSlice';
 
 export const store = configureStore({
   reducer: {
     kelas: kelasReducer,
     filter: filterReducer,
     user: userReducer,
+    auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

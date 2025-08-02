@@ -1,12 +1,12 @@
 import api, { checkApiConnection, debugApiConfig } from './api.js';
 
 const kelasApi = {
-  // Enhanced connection test with debugging
+
   testConnection: async () => {
     console.log('🔍 Testing Kelas API connection...');
     
     try {
-      // First debug the configuration
+
       debugApiConfig();
       
       // Test using the enhanced API connection check
@@ -62,7 +62,7 @@ const kelasApi = {
         responseData: error.response?.data
       });
       
-      // Enhanced error handling with specific messages
+
       if (error.response?.status === 404) {
         const errorMsg = 'Kelas endpoint not found - check backend routing';
         console.error('🔴', errorMsg);
@@ -89,12 +89,12 @@ const kelasApi = {
         throw new Error(errorMsg);
       }
       
-      // Re-throw original error if not handled above
+
       throw error;
     }
   },
 
-  // Get kelas by ID with enhanced debugging
+  // Get kelas by ID 
   getKelasById: async (id) => {
     if (!id) {
       const errorMsg = 'Kelas ID is required';
@@ -141,7 +141,7 @@ const kelasApi = {
     }
   },
 
-  // Get kelas by category with enhanced debugging
+  // Get kelas by category 
   getKelasByCategory: async (categoryId) => {
     if (!categoryId) {
       const errorMsg = 'Category ID is required';
@@ -183,7 +183,7 @@ const kelasApi = {
     }
   },
 
-  // Search kelas with enhanced debugging
+  // Search kelas 
   searchKelas: async (searchTerm) => {
     if (!searchTerm || searchTerm.trim() === '') {
       const errorMsg = 'Search term is required';
@@ -197,7 +197,7 @@ const kelasApi = {
     try {
       const searchParams = { 
         q: cleanSearchTerm,
-        limit: 50 // Optional: limit search results
+        limit: 50 
       };
       
       console.log('🌐 Making request to: /api/kelas/search with params:', searchParams);
@@ -233,7 +233,7 @@ const kelasApi = {
     }
   },
 
-  // Get kelas with filters - enhanced debugging
+  // Get kelas 
   getKelasWithFilters: async (filters = {}) => {
     console.log('📋 Fetching kelas with filters:', filters);
     

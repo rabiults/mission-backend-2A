@@ -1,20 +1,17 @@
 import axios from 'axios';
-
-// Base URL configuration - PERBAIKI: gunakan port backend yang benar
-const baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:3001'; // Port backend yang benar
+const baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:3001'; 
 
 const api = axios.create({
   baseURL,
-  timeout: 30000, // Increased timeout untuk development
+  timeout: 30000, 
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  // PENTING: Untuk CORS issues
   withCredentials: false,
 });
 
-// Request interceptor
+
 api.interceptors.request.use(
   (config) => {
     console.log('🚀 API Request:', {
@@ -26,10 +23,11 @@ api.interceptors.request.use(
       data: config.data
     });
     
-    // Add auth token if exists (optional)
+    // Add auth token dari localStorage jika ada
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Added auth token to request');
     }
     
     return config;
@@ -40,7 +38,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor
+// Response interceptor untuk handle response dan error
 api.interceptors.response.use(
   (response) => {
     console.log('✅ API Response:', {
@@ -67,7 +65,7 @@ api.interceptors.response.use(
     
     console.error('❌ Response Error Details:', errorDetails);
     
-    // Enhanced error handling untuk debugging
+    // Enhanced error handling
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
@@ -83,7 +81,13 @@ api.interceptors.response.use(
           console.error('🔴 Bad Request - Check request data');
           break;
         case 401:
-          console.error('🔴 Unauthorized');
+          console.error('🔴 Unauthorized - Token invalid/expired');
+          // Auto logout jika token invalid
+          if (localStorage.getItem('token')) {
+            console.log('🔄 Removing invalid token and redirecting to login');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
           break;
         case 403:
           console.error('🔴 Forbidden');
@@ -91,6 +95,9 @@ api.interceptors.response.use(
         case 404:
           console.error('🔴 Not Found - Check endpoint URL');
           console.error('💡 Trying to access:', errorDetails.url);
+          break;
+        case 409:
+          console.error('🔴 Conflict - Data already exists');
           break;
         case 500:
           console.error('🔴 Internal Server Error');
@@ -132,15 +139,48 @@ api.interceptors.response.use(
   }
 );
 
-// API connectivity check menggunakan endpoint /api/kelas
+// API Service Functions untuk Auth
+export const authAPI = {
+  // Register user
+  register: (userData) => {
+    console.log('📝 Registering user via API:', userData);
+    return api.post('/api/auth/register', userData);
+  },
+
+  // Login user
+  login: (credentials) => {
+    console.log('🔐 Logging in user via API:', { email: credentials.email });
+    return api.post('/api/auth/login', credentials);
+  },
+
+  // Logout user
+  logout: () => {
+    console.log('🚪 Logging out user via API');
+    return api.post('/api/auth/logout');
+  },
+
+  // Get user profile
+  getProfile: () => {
+    console.log('👤 Getting user profile via API');
+    return api.get('/api/auth/profile');
+  },
+
+  // Verify email
+  verifyEmail: (token) => {
+    console.log('✉️ Verifying email via API:', { token });
+    return api.get(`/api/auth/verifikasi-email?token=${token}`);
+  }
+};
+
+// Connection test functions
 export const checkApiConnection = async () => {
   try {
     console.log('🔍 Checking API connection at:', baseURL);
-    const response = await api.get('/api/kelas');
+    // Test dengan endpoint yang tidak memerlukan auth
+    const response = await api.get('/');
     console.log('✅ API Connection Check Successful:', {
       status: response.status,
-      dataLength: Array.isArray(response.data) ? response.data.length : 'N/A',
-      message: 'Successfully connected to /api/kelas endpoint'
+      message: 'Successfully connected to backend'
     });
     return { success: true, data: response.data, message: 'API connection successful' };
   } catch (error) {
@@ -151,80 +191,49 @@ export const checkApiConnection = async () => {
       details: {
         code: error.code,
         status: error.response?.status,
-        url: `${baseURL}/api/kelas`
+        url: `${baseURL}/`
       }
     };
   }
 };
 
-// Test koneksi ke endpoint kelas (alias untuk checkApiConnection)
-export const testKelasEndpoint = async () => {
-  return await checkApiConnection();
-};
-
-// Direct axios test (bypass interceptors untuk debugging)
-export const testDirectConnection = async () => {
-  try {
-    console.log('🔍 Testing direct axios connection...');
-    const response = await axios.get('http://localhost:3001/api/kelas', {
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
-    
-    console.log('✅ Direct connection successful:', {
-      status: response.status,
-      dataLength: Array.isArray(response.data) ? response.data.length : 'N/A'
-    });
-    return { success: true, data: response.data };
-  } catch (error) {
-    console.error('❌ Direct connection failed:', error.message);
-    console.error('Error details:', {
-      code: error.code,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    return { success: false, error: error.message };
-  }
-};
-
-// Comprehensive connection test dengan multiple methods
-export const runConnectionTests = async () => {
-  console.log('🚀 Running comprehensive API connection tests...');
+// Test koneksi auth endpoints
+export const testAuthEndpoints = async () => {
+  console.log('🔍 Testing auth endpoints...');
   
   const results = {
-    configured: false,
-    interceptor: false,
-    direct: false,
+    register: false,
+    login: false,
     summary: ''
   };
   
-  // Test 1: Using configured API instance
-  console.log('\n📋 Test 1: Using configured API instance');
-  const configuredTest = await checkApiConnection();
-  results.configured = configuredTest.success;
-  
-  // Test 2: Direct axios call
-  console.log('\n📋 Test 2: Direct axios connection');
-  const directTest = await testDirectConnection();
-  results.direct = directTest.success;
-  
-  // Summary
-  if (results.configured && results.direct) {
-    results.summary = '✅ All tests passed - API connection is working properly';
-  } else if (results.configured || results.direct) {
-    results.summary = '⚠️ Partial success - some connection methods work';
-  } else {
-    results.summary = '❌ All tests failed - check backend server and network';
+  try {
+    // Test register endpoint dengan data dummy (akan gagal karena data tidak lengkap, tapi endpoint harus respond)
+    await api.post('/api/auth/register', {});
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      console.log('✅ Register endpoint responding (400 expected for empty data)');
+      results.register = true;
+    }
   }
   
-  console.log('\n📊 Connection Test Summary:');
-  console.log('   Configured API:', results.configured ? '✅' : '❌');
-  console.log('   Direct Connection:', results.direct ? '✅' : '❌');
-  console.log('   Overall:', results.summary);
+  try {
+    // Test login endpoint dengan data dummy
+    await api.post('/api/auth/login', {});
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      console.log('✅ Login endpoint responding (400 expected for empty data)');
+      results.login = true;
+    }
+  }
   
+  if (results.register && results.login) {
+    results.summary = '✅ All auth endpoints are accessible';
+  } else {
+    results.summary = '❌ Some auth endpoints are not accessible';
+  }
+  
+  console.log('📊 Auth Endpoints Test Summary:', results.summary);
   return results;
 };
 
@@ -236,13 +245,24 @@ export const debugApiConfig = () => {
   console.log('   Timeout:', api.defaults.timeout);
   console.log('   Headers:', api.defaults.headers);
   console.log('   With Credentials:', api.defaults.withCredentials);
-  console.log('   Available endpoints: /api/kelas');
+  console.log('   Available auth endpoints:');
+  console.log('     - POST /api/auth/register');
+  console.log('     - POST /api/auth/login');
+  console.log('     - POST /api/auth/logout');
+  console.log('     - GET /api/auth/profile');
+  console.log('     - GET /api/auth/verifikasi-email');
 };
 
 // Quick test function untuk development
 export const quickTest = async () => {
   debugApiConfig();
-  return await checkApiConnection();
+  const connectionTest = await checkApiConnection();
+  const authTest = await testAuthEndpoints();
+  
+  return {
+    connection: connectionTest,
+    auth: authTest
+  };
 };
 
 export default api;
